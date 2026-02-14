@@ -79,7 +79,7 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
             type="number"
             placeholder={props.placeholder}
             value={isPreview ? String(value ?? props.defaultValue ?? '') : ''}
-            onChange={isPreview ? (e) => onChange?.(e.target.value ? Number(e.target.value) : '') : undefined}
+            onChange={isPreview ? (e) => onChange?.(e.target.value ? Number(e.target.value) : undefined) : undefined}
             readOnly={!isPreview}
             disabled={props.disabled}
           />
@@ -115,7 +115,6 @@ export const ComponentRenderer: React.FC<ComponentRendererProps> = ({
             type="checkbox"
             checked={isPreview ? Boolean(value ?? props.defaultValue) : false}
             onChange={isPreview ? (e) => onChange?.(e.target.checked) : undefined}
-            readOnly={!isPreview}
             disabled={!isPreview || props.disabled}
           />
           <label>{props.label || component.name}</label>

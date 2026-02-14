@@ -6,7 +6,7 @@
 
 import type { Card, Stack } from '../types/schema';
 import { createDefaultComponent } from '../types/schema';
-import { AI_TOOL_DEFINITIONS, buildAISystemPrompt, processCreateCards, runLintAndRepair } from './tools';
+import { AI_TOOL_DEFINITIONS, buildAISystemPrompt, processCreateCards, runLintAndRepair, type CardSpec } from './tools';
 
 export interface CopilotConfig {
   apiKey: string;
@@ -46,8 +46,8 @@ export function configureCopilot(newConfig: Partial<CopilotConfig>): void {
   config = { ...config, ...newConfig };
 }
 
-export function getCopilotConfig(): CopilotConfig {
-  return { ...config };
+export function isCopilotConfigured(): boolean {
+  return Boolean(config.apiKey);
 }
 
 /**
@@ -466,9 +466,13 @@ async function processWithLLM(
     const data = await response.json();
     return processLLMResponse(data, stack);
   } catch (error) {
-    // Fallback to local generation
+    // Fallback to local generation; annotate result so callers know
     console.warn('LLM API call failed, using local generation:', error);
-    return processLocally(prompt, stack);
+    const localResult = await processLocally(prompt, stack);
+    localResult.message =
+      'AI service is currently unavailable. Using local template-based generation instead.\n\n' +
+      localResult.message;
+    return localResult;
   }
 }
 
@@ -536,6 +540,5 @@ function processLLMResponse(
   return result;
 }
 
-type CardSpec = Parameters<typeof processCreateCards>[0][0];
 type ComponentType = Card['components'][0]['type'];
 type ActionEffect = Card['actions'][0]['effects'][0];

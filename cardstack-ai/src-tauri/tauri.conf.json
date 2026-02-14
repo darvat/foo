@@ -18,8 +18,10 @@
         "open": true
       },
       "fs": {
-        "all": true,
-        "scope": ["$APPDATA/**", "$DOCUMENT/**"]
+        "all": false,
+        "readFile": true,
+        "writeFile": true,
+        "scope": ["$APPDATA/cardstack-ai/**", "$DOCUMENT/cardstack-ai/**"]
       },
       "dialog": {
         "all": true

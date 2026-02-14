@@ -119,9 +119,10 @@ const PropertiesEditor: React.FC = () => {
   }
 
   const update = (updates: Record<string, unknown>) => {
+    const { props: updatedProps, ...otherUpdates } = updates;
     updateComponent(card.id, component.id, {
-      ...updates,
-      props: { ...component.props, ...updates.props as Record<string, unknown> },
+      ...otherUpdates,
+      props: { ...component.props, ...(updatedProps as Record<string, unknown> ?? {}) },
     });
   };
 

@@ -190,8 +190,8 @@ class Parser {
         const l = prevLeft(ctx);
         const r = right(ctx);
         switch (op) {
-          case '==': return l == r;
-          case '!=': return l != r;
+          case '==': return l === r;
+          case '!=': return l !== r;
           case '>': return Number(l) > Number(r);
           case '<': return Number(l) < Number(r);
           case '>=': return Number(l) >= Number(r);
@@ -233,8 +233,8 @@ class Parser {
         const r = Number(right(ctx));
         switch (op) {
           case '*': return l * r;
-          case '/': return r !== 0 ? l / r : 0;
-          case '%': return r !== 0 ? l % r : 0;
+          case '/': return r !== 0 ? l / r : undefined;
+          case '%': return r !== 0 ? l % r : undefined;
           default: return 0;
         }
       };

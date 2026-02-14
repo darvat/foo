@@ -184,7 +184,7 @@ export const AI_TOOL_DEFINITIONS = [
 
 // ── Tool execution ───────────────────────────────────────────────
 
-interface CardSpec {
+export interface CardSpec {
   title: string;
   description?: string;
   components?: Array<{

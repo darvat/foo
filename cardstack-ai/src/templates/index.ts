@@ -7,12 +7,6 @@
 import type { StackTemplate } from '../types/schema';
 import { createDefaultCard, createDefaultComponent } from '../types/schema';
 
-function makeCard(title: string, order: number, components: Parameters<typeof createDefaultComponent extends (...args: infer A) => unknown ? never : never>[], description?: string) {
-  const card = createDefaultCard(title, order);
-  if (description) card.description = description;
-  return card;
-}
-
 // ── Template 1: Intake Form ─────────────────────────────────────
 
 const intakeFormTemplate: StackTemplate = {

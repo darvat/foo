@@ -51,6 +51,7 @@ interface AppState {
 
   // Stack operations
   createStack: (name: string) => void;
+  clearStack: () => void;
   loadStack: (stack: Stack) => void;
   loadTemplate: (template: StackTemplate) => void;
   updateStackSettings: (settings: Partial<Stack['settings']>) => void;
@@ -177,6 +178,19 @@ export const useStackStore = create<AppState>()(
           s.editor.selectedCardId = firstCard.id;
           s.editor.isDirty = false;
           s.runtime.currentCardId = firstCard.id;
+        });
+      },
+
+      clearStack: () => {
+        set((s) => {
+          s.stack = null;
+          s.editor.selectedCardId = null;
+          s.editor.selectedComponentId = null;
+          s.editor.isDirty = false;
+          s.editor.mode = 'edit';
+          s.runtime = { currentCardId: '', fields: {}, errors: {}, messages: [], dataRecords: {} };
+          s.aiMessages = [];
+          s.aiLoading = false;
         });
       },
 

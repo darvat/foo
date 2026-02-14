@@ -52,9 +52,7 @@ export const App: React.FC = () => {
         return;
       }
     }
-    useStackStore.getState().loadStack(null as unknown as never);
-    // Force re-render by setting stack to null
-    useStackStore.setState({ stack: null });
+    useStackStore.getState().clearStack();
   };
 
   return (
