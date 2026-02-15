@@ -80,6 +80,7 @@ export const PreviewMode: React.FC = () => {
 
           {/* Components */}
           {currentCard.components
+            .slice()
             .sort((a, b) => a.order - b.order)
             .map((component) => {
               // Check visibility

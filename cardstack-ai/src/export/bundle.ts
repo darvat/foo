@@ -213,7 +213,7 @@ td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
 
     let msgsHtml = messages.map(m => '<div class="msg msg-' + m.type + '">' + esc(m.text) + '</div>').join('');
 
-    const compsHtml = card.components.sort((a,b) => a.order - b.order).map(renderComponent).join('');
+    const compsHtml = card.components.slice().sort((a,b) => a.order - b.order).map(renderComponent).join('');
 
     document.body.innerHTML = navHtml +
       '<div class="container"><div class="card"><div class="card-title">' + esc(card.title) + '</div>' + msgsHtml + compsHtml + '</div></div>';
