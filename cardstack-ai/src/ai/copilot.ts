@@ -505,23 +505,28 @@ function processLLMResponse(
               const card = existingCards.find((c) => c.title.toLowerCase() === cardTitle.toLowerCase());
               if (card && Array.isArray(input.components)) {
                 const components = input.components
-                  .filter((spec): spec is Record<string, unknown> => 
-                    typeof spec === 'object' && 
-                    spec !== null && 
-                    typeof (spec as Record<string, unknown>).type === 'string' && 
-                    typeof (spec as Record<string, unknown>).name === 'string'
-                  )
+                  .filter((spec): spec is Record<string, unknown> => {
+                    const s = spec as Record<string, unknown>;
+                    return (
+                      typeof spec === 'object' && 
+                      spec !== null && 
+                      typeof s.type === 'string' && 
+                      typeof s.name === 'string'
+                    );
+                  })
                   .map((spec, i) => {
                     const comp = createDefaultComponent(
                       spec.type as ComponentType, 
                       spec.name as string, 
                       card.components.length + i
                     );
-                    // Only copy known safe properties to avoid prototype pollution
-                    const safeProps = { ...spec };
-                    delete safeProps.type;
-                    delete safeProps.name;
-                    Object.assign(comp.props, safeProps);
+                    // Safely copy properties, excluding dangerous keys and special properties
+                    const dangerousKeys = ['__proto__', 'constructor', 'prototype', 'type', 'name'];
+                    for (const key in spec) {
+                      if (Object.prototype.hasOwnProperty.call(spec, key) && !dangerousKeys.includes(key)) {
+                        (comp.props as Record<string, unknown>)[key] = spec[key];
+                      }
+                    }
                     return comp;
                   });
                 if (components.length > 0) {
@@ -544,9 +549,11 @@ function processLLMResponse(
                   .map((spec) => {
                     // Validate effects are arrays of objects with 'type' property
                     const validateEffects = (effects: unknown): effects is ActionEffect[] => {
-                      return Array.isArray(effects) && effects.every(
-                        e => typeof e === 'object' && e !== null && typeof (e as Record<string, unknown>).type === 'string'
-                      );
+                      if (!Array.isArray(effects)) return false;
+                      return effects.every(e => {
+                        const effect = e as Record<string, unknown>;
+                        return typeof e === 'object' && e !== null && typeof effect.type === 'string';
+                      });
                     };
                     
                     const thenEffects = validateEffects(spec.thenEffects) ? spec.thenEffects : [];
