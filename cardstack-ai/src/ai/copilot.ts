@@ -118,46 +118,46 @@ function generateFromPrompt(prompt: string, existingCards: Card[]): Card[] {
   const lower = prompt.toLowerCase();
 
   // Detect intent and generate appropriate cards
-  const specs = analyzePromptAndGenerateSpecs(lower, prompt);
+  const specs = analyzePromptAndGenerateSpecs(lower);
   return processCreateCards(specs, existingCards);
 }
 
-function analyzePromptAndGenerateSpecs(lower: string, _original: string) {
+function analyzePromptAndGenerateSpecs(lower: string) {
   // Form / intake patterns
   if (lower.includes('form') || lower.includes('intake') || lower.includes('onboarding') || lower.includes('registration') || lower.includes('sign up') || lower.includes('signup')) {
-    return generateFormSpecs(lower);
+    return generateFormSpecs();
   }
 
   // Approval / review patterns
   if (lower.includes('approval') || lower.includes('review') || lower.includes('approve')) {
-    return generateApprovalSpecs(lower);
+    return generateApprovalSpecs();
   }
 
   // Calculator / estimator patterns
   if (lower.includes('calculator') || lower.includes('calculate') || lower.includes('estimat') || lower.includes('cost') || lower.includes('price') || lower.includes('quote')) {
-    return generateCalculatorSpecs(lower);
+    return generateCalculatorSpecs();
   }
 
   // Tracker / CRM patterns
   if (lower.includes('track') || lower.includes('crm') || lower.includes('contact') || lower.includes('customer') || lower.includes('lead')) {
-    return generateTrackerSpecs(lower);
+    return generateTrackerSpecs();
   }
 
   // Checklist / SOP patterns
   if (lower.includes('checklist') || lower.includes('sop') || lower.includes('procedure') || lower.includes('steps') || lower.includes('process')) {
-    return generateChecklistSpecs(lower);
+    return generateChecklistSpecs();
   }
 
   // Survey / quiz patterns
   if (lower.includes('survey') || lower.includes('quiz') || lower.includes('questionnaire') || lower.includes('feedback')) {
-    return generateSurveySpecs(lower);
+    return generateSurveySpecs();
   }
 
   // Default: create a simple multi-card workflow
-  return generateDefaultSpecs(lower);
+  return generateDefaultSpecs();
 }
 
-function generateFormSpecs(_lower: string) {
+function generateFormSpecs() {
   return [
     {
       title: 'Information',
@@ -190,7 +190,7 @@ function generateFormSpecs(_lower: string) {
   ];
 }
 
-function generateApprovalSpecs(_lower: string) {
+function generateApprovalSpecs() {
   return [
     {
       title: 'Submit Request',
@@ -237,7 +237,7 @@ function generateApprovalSpecs(_lower: string) {
   ];
 }
 
-function generateCalculatorSpecs(_lower: string) {
+function generateCalculatorSpecs() {
   return [
     {
       title: 'Calculator',
@@ -280,7 +280,7 @@ function generateCalculatorSpecs(_lower: string) {
   ];
 }
 
-function generateTrackerSpecs(_lower: string) {
+function generateTrackerSpecs() {
   return [
     {
       title: 'Add Entry',
@@ -315,7 +315,7 @@ function generateTrackerSpecs(_lower: string) {
   ];
 }
 
-function generateChecklistSpecs(_lower: string) {
+function generateChecklistSpecs() {
   return [
     {
       title: 'Checklist',
@@ -350,7 +350,7 @@ function generateChecklistSpecs(_lower: string) {
   ];
 }
 
-function generateSurveySpecs(_lower: string) {
+function generateSurveySpecs() {
   return [
     {
       title: 'Questions',
@@ -381,7 +381,7 @@ function generateSurveySpecs(_lower: string) {
   ];
 }
 
-function generateDefaultSpecs(_lower: string) {
+function generateDefaultSpecs() {
   return [
     {
       title: 'Home',
@@ -489,50 +489,105 @@ function processLLMResponse(
     }
 
     if (block.type === 'tool_use' && block.name && block.input) {
-      switch (block.name) {
-        case 'create_cards': {
-          const specs = (block.input as { cards: CardSpec[] }).cards || [];
-          result.cards = processCreateCards(specs as CardSpec[], existingCards);
-          break;
-        }
-        case 'add_components': {
-          const cardTitle = (block.input as { cardTitle: string }).cardTitle;
-          const card = existingCards.find((c) => c.title.toLowerCase() === cardTitle.toLowerCase());
-          if (card) {
-            const compSpecs = (block.input as { components: Array<{ type: ComponentType; name: string }> }).components || [];
-            const components = compSpecs.map((spec, i) => {
-              const comp = createDefaultComponent(spec.type as ComponentType, spec.name, card.components.length + i);
-              Object.assign(comp.props, spec);
-              return comp;
-            });
-            result.components = [{ cardId: card.id, components }];
+      try {
+        switch (block.name) {
+          case 'create_cards': {
+            const input = block.input as Record<string, unknown>;
+            if (Array.isArray(input.cards)) {
+              result.cards = processCreateCards(input.cards as CardSpec[], existingCards);
+            }
+            break;
           }
-          break;
-        }
-        case 'generate_rules': {
-          const cardTitle = (block.input as { cardTitle: string }).cardTitle;
-          const card = existingCards.find((c) => c.title.toLowerCase() === cardTitle.toLowerCase());
-          if (card) {
-            const ruleSpecs = (block.input as { rules: Array<{ name: string; condition: string; thenEffects: ActionEffect[]; elseEffects?: ActionEffect[] }> }).rules || [];
-            const rules = ruleSpecs.map((spec) => ({
-              id: crypto.randomUUID(),
-              name: spec.name,
-              condition: spec.condition,
-              thenEffects: spec.thenEffects,
-              elseEffects: spec.elseEffects,
-              active: true,
-            }));
-            result.rules = [{ cardId: card.id, rules }];
+          case 'add_components': {
+            const input = block.input as Record<string, unknown>;
+            if (typeof input.cardTitle === 'string') {
+              const cardTitle = input.cardTitle;
+              const card = existingCards.find((c) => c.title.toLowerCase() === cardTitle.toLowerCase());
+              if (card && Array.isArray(input.components)) {
+                const components = input.components
+                  .filter((spec): spec is Record<string, unknown> => {
+                    const s = spec as Record<string, unknown>;
+                    return (
+                      typeof spec === 'object' && 
+                      spec !== null && 
+                      typeof s.type === 'string' && 
+                      typeof s.name === 'string'
+                    );
+                  })
+                  .map((spec, i) => {
+                    const comp = createDefaultComponent(
+                      spec.type as ComponentType, 
+                      spec.name as string, 
+                      card.components.length + i
+                    );
+                    // Safely copy properties, excluding dangerous keys and special properties
+                    const dangerousKeys = ['__proto__', 'constructor', 'prototype', 'type', 'name'];
+                    for (const key in spec) {
+                      if (Object.prototype.hasOwnProperty.call(spec, key) && !dangerousKeys.includes(key)) {
+                        (comp.props as Record<string, unknown>)[key] = spec[key];
+                      }
+                    }
+                    return comp;
+                  });
+                if (components.length > 0) {
+                  result.components = [{ cardId: card.id, components }];
+                }
+              }
+            }
+            break;
           }
-          break;
-        }
-        case 'lint_and_repair_logic': {
-          if (stack) {
-            const { explanation } = runLintAndRepair(stack);
-            result.message += '\n\n' + explanation;
+          case 'generate_rules': {
+            const input = block.input as Record<string, unknown>;
+            if (typeof input.cardTitle === 'string') {
+              const cardTitle = input.cardTitle;
+              const card = existingCards.find((c) => c.title.toLowerCase() === cardTitle.toLowerCase());
+              if (card && Array.isArray(input.rules)) {
+                const rules = input.rules
+                  .filter((spec): spec is Record<string, unknown> => 
+                    typeof spec === 'object' && spec !== null
+                  )
+                  .map((spec) => {
+                    // Validate effects are arrays of objects with 'type' property
+                    const validateEffects = (effects: unknown): effects is ActionEffect[] => {
+                      if (!Array.isArray(effects)) return false;
+                      return effects.every(e => {
+                        const effect = e as Record<string, unknown>;
+                        return typeof e === 'object' && e !== null && typeof effect.type === 'string';
+                      });
+                    };
+                    
+                    const thenEffects = validateEffects(spec.thenEffects) ? spec.thenEffects : [];
+                    const elseEffects = spec.elseEffects !== undefined && validateEffects(spec.elseEffects) 
+                      ? spec.elseEffects 
+                      : undefined;
+                    
+                    return {
+                      id: crypto.randomUUID(),
+                      name: typeof spec.name === 'string' ? spec.name : 'Unnamed Rule',
+                      condition: typeof spec.condition === 'string' ? spec.condition : 'true',
+                      thenEffects,
+                      elseEffects,
+                      active: true,
+                    };
+                  });
+                if (rules.length > 0) {
+                  result.rules = [{ cardId: card.id, rules }];
+                }
+              }
+            }
+            break;
           }
-          break;
+          case 'lint_and_repair_logic': {
+            if (stack) {
+              const { explanation } = runLintAndRepair(stack);
+              result.message += '\n\n' + explanation;
+            }
+            break;
+          }
         }
+      } catch (error) {
+        console.warn('Error processing LLM tool call:', block.name, error);
+        // Continue processing other blocks instead of failing completely
       }
     }
   }
