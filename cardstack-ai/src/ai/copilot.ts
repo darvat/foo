@@ -504,13 +504,29 @@ function processLLMResponse(
               const cardTitle = input.cardTitle;
               const card = existingCards.find((c) => c.title.toLowerCase() === cardTitle.toLowerCase());
               if (card && Array.isArray(input.components)) {
-                const compSpecs = input.components as Array<{ type: ComponentType; name: string }>;
-                const components = compSpecs.map((spec, i) => {
-                  const comp = createDefaultComponent(spec.type as ComponentType, spec.name, card.components.length + i);
-                  Object.assign(comp.props, spec);
-                  return comp;
-                });
-                result.components = [{ cardId: card.id, components }];
+                const components = input.components
+                  .filter((spec): spec is Record<string, unknown> => 
+                    typeof spec === 'object' && 
+                    spec !== null && 
+                    typeof (spec as Record<string, unknown>).type === 'string' && 
+                    typeof (spec as Record<string, unknown>).name === 'string'
+                  )
+                  .map((spec, i) => {
+                    const comp = createDefaultComponent(
+                      spec.type as ComponentType, 
+                      spec.name as string, 
+                      card.components.length + i
+                    );
+                    // Only copy known safe properties to avoid prototype pollution
+                    const safeProps = { ...spec };
+                    delete safeProps.type;
+                    delete safeProps.name;
+                    Object.assign(comp.props, safeProps);
+                    return comp;
+                  });
+                if (components.length > 0) {
+                  result.components = [{ cardId: card.id, components }];
+                }
               }
             }
             break;
@@ -521,16 +537,35 @@ function processLLMResponse(
               const cardTitle = input.cardTitle;
               const card = existingCards.find((c) => c.title.toLowerCase() === cardTitle.toLowerCase());
               if (card && Array.isArray(input.rules)) {
-                const ruleSpecs = input.rules as Array<{ name: string; condition: string; thenEffects: ActionEffect[]; elseEffects?: ActionEffect[] }>;
-                const rules = ruleSpecs.map((spec) => ({
-                  id: crypto.randomUUID(),
-                  name: spec.name || 'Unnamed Rule',
-                  condition: spec.condition || 'true',
-                  thenEffects: Array.isArray(spec.thenEffects) ? spec.thenEffects : [],
-                  elseEffects: Array.isArray(spec.elseEffects) ? spec.elseEffects : undefined,
-                  active: true,
-                }));
-                result.rules = [{ cardId: card.id, rules }];
+                const rules = input.rules
+                  .filter((spec): spec is Record<string, unknown> => 
+                    typeof spec === 'object' && spec !== null
+                  )
+                  .map((spec) => {
+                    // Validate effects are arrays of objects with 'type' property
+                    const validateEffects = (effects: unknown): effects is ActionEffect[] => {
+                      return Array.isArray(effects) && effects.every(
+                        e => typeof e === 'object' && e !== null && typeof (e as Record<string, unknown>).type === 'string'
+                      );
+                    };
+                    
+                    const thenEffects = validateEffects(spec.thenEffects) ? spec.thenEffects : [];
+                    const elseEffects = spec.elseEffects !== undefined && validateEffects(spec.elseEffects) 
+                      ? spec.elseEffects 
+                      : undefined;
+                    
+                    return {
+                      id: crypto.randomUUID(),
+                      name: typeof spec.name === 'string' ? spec.name : 'Unnamed Rule',
+                      condition: typeof spec.condition === 'string' ? spec.condition : 'true',
+                      thenEffects,
+                      elseEffects,
+                      active: true,
+                    };
+                  });
+                if (rules.length > 0) {
+                  result.rules = [{ cardId: card.id, rules }];
+                }
               }
             }
             break;
